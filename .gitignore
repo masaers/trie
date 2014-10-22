@@ -26,3 +26,9 @@
 *.exe
 *.out
 *.app
+
+# The build directory
+build/
+
+# Any emacs temporaries.
+*~
