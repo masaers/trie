@@ -1,5 +1,6 @@
 #ifndef TRIE_HPP
 #define TRIE_HPP
+#include <set>
 #include <unordered_set>
 #include <vector>
 #include <cassert>
@@ -30,12 +31,115 @@ private:
   element_type element_m;
 }; // trie_node_query_t
 
+
+template<typename Node, typename Element>
+class trie_node_crtp_t : public trie_node_query_t<Element> {
+public:
+  typedef Node node_type;
+  typedef Element element_type;
+private:
+  typedef trie_node_query_t<Element> base_type;
+  inline node_type& me() { return static_cast<node_type&>(*this); }
+  inline const node_type& me() const { return static_cast<const node_type&>(*this); }
+public:
+  inline trie_node_crtp_t() : base_type(), parent_m(NULL) {}
+  explicit inline trie_node_crtp_t(element_type element, node_type* parent)
+    : base_type(std::move(element)), parent_m(parent)
+  {}
+  inline trie_node_crtp_t(trie_node_crtp_t&&) = default;
+  trie_node_crtp_t& operator=(trie_node_crtp_t x) {
+    swap(*this, x);
+    return *this;
+  }
+  friend inline void swap(trie_node_crtp_t& a, trie_node_crtp_t& b) {
+    using namespace std;
+    swap(static_cast<base_type&>(a), static_cast<base_type&>(b));
+    swap(a.parent_m, b.parent_m);
+  }
+  inline node_type* parent() const { return parent_m; }
+  inline node_type* first_child() const {
+    node_type* result = NULL;
+    auto it = me().children().begin();
+    if (it != me().children().end()) {
+      result = *it;
+    }
+    return result;
+  }
+  inline node_type* last_child() const {
+    node_type* result = NULL;
+    auto it = me().children().rbegin();
+    if (it != me().children().rend()) {
+      result = *it;
+    }
+    return result;
+  }
+  inline node_type* child(const element_type& x) const {
+    node_type* result = NULL;
+    base_type query(x);
+    auto it = me().children().find(static_cast<node_type*>(&query));
+    if (it != me().children().end()) {
+      result = *it;
+    }
+    return *it;
+  }
+  inline std::pair<node_type*, bool> make_child(const element_type& x) {
+    base_type query(x);
+    auto p = me().children().insert(static_cast<node_type*>(&query));
+    if (p.second) {
+      const_cast<node_type*&>(*(p.first)) = new node_type(x, &me());
+    }
+    return std::pair<node_type*, bool>(*p.first, p.second);
+  }
+  inline node_type* disown_child(node_type* x) {
+    return (me().children().erase(x) > 0) ? x : NULL;
+  }
+  inline node_type* disown_child(const element_type& x) {
+    base_type query(x);
+    return disown_child(*me().children().find(static_cast<node_type*>(&query)));
+  }
+  bool leaf_b() const { return me().children().empty(); }
+  void force_to_leaf() {
+    for (auto it = me().children().begin(); it != me().children().end(); ++it) {
+      delete *it;
+    }
+    me().children().clear();
+  }
+  node_type* previous_sibling() const {
+    node_type* result = NULL;
+    if (me().parent() != NULL) {
+      auto it = me().parent()->children().find(const_cast<node_type*>(&me()));
+      if (it != me().parent()->children().end() &&
+  	  it != me().parent()->children().begin()) {
+  	--it;
+  	result = *it;
+      }
+    }
+    return result;
+  }
+  node_type* next_sibling() const {
+    node_type* result = NULL;
+    if (me().parent() != NULL) {
+      auto it = me().parent()->children().find(const_cast<node_type*>(&me()));
+      if (it != me().parent()->children().end()) {
+  	++it;
+  	if (it != me().parent()->children().end()) {
+  	  result = *it;
+  	}
+      }
+    }
+    return result;
+  }
+protected:
+  node_type* parent_m;
+}; // trie_node_crtp_t
+
+
 template<typename Element,
 	 typename Hash = std::hash<Element>,
 	 typename Equal = std::equal_to<Element> >
-class unordered_trie_node_t : public trie_node_query_t<Element> {
+class unordered_trie_node_t : public trie_node_crtp_t<unordered_trie_node_t<Element, Hash, Equal>, Element> {
 private:
-  typedef trie_node_query_t<Element> base_type;
+  typedef trie_node_crtp_t<unordered_trie_node_t<Element, Hash, Equal>, Element> base_type;
 public:
   typedef typename base_type::element_type element_type;
   typedef Hash element_hash;
@@ -53,18 +157,14 @@ protected:
   }; // node_equal
   typedef std::unordered_set<unordered_trie_node_t*, node_hash, node_equal> children_type;
 public:
-  inline unordered_trie_node_t() : base_type(), parent_m(NULL), children_m() {}
-  explicit inline unordered_trie_node_t(const element_type& element,
+  inline unordered_trie_node_t() : base_type(), children_m() {}
+  explicit inline unordered_trie_node_t(element_type element,
 					unordered_trie_node_t* parent = NULL)
-    : base_type(element), parent_m(parent), children_m()
-  {}
-  explicit inline unordered_trie_node_t(element_type&& element,
-					unordered_trie_node_t* parent = NULL)
-    : base_type(std::move(element)), parent_m(parent), children_m()
+    : base_type(std::move(element), parent), children_m()
   {}
   inline unordered_trie_node_t(const unordered_trie_node_t&) = delete;
   inline unordered_trie_node_t(unordered_trie_node_t&&) = default;
-  ~unordered_trie_node_t() { force_to_leaf(); }
+  ~unordered_trie_node_t() { this->force_to_leaf(); }
   unordered_trie_node_t& operator=(unordered_trie_node_t x) {
     swap(*this, x);
     return *this;
@@ -72,87 +172,288 @@ public:
   friend inline void swap(unordered_trie_node_t& a, unordered_trie_node_t& b) {
     using namespace std;
     swap(static_cast<base_type&>(a), static_cast<base_type&>(b));
+    swap(a.children_m, b.children_m);
+  }
+  inline children_type& children() { return children_m; }
+  inline const children_type& children() const { return children_m; }
+private:
+  children_type children_m;
+}; // unordered_trie_node_t
+
+template<typename Element,
+	 typename Comp = std::less<Element> >
+class ordered_trie_node_t : public trie_node_crtp_t<ordered_trie_node_t<Element, Comp>, Element> {
+public:
+  typedef Element element_type;
+  typedef Comp element_comp;
+protected:
+  typedef trie_node_crtp_t<ordered_trie_node_t<Element, Comp>, Element> base_type;
+  struct node_comp {
+    inline bool operator()(const base_type* a, const base_type* b) const {
+      return element_comp()(a->element(), b->element());
+    }
+  }; // node_comp
+  typedef std::set<ordered_trie_node_t*, node_comp> children_type;
+public:
+  inline ordered_trie_node_t() : base_type(), children_m() {}
+  explicit inline ordered_trie_node_t(const element_type& element,
+				      ordered_trie_node_t* parent = NULL)
+    : base_type(std::move(element), parent), children_m()
+  {}
+  inline ordered_trie_node_t(const ordered_trie_node_t&) = delete;
+  inline ordered_trie_node_t(ordered_trie_node_t&&) = default;
+  ~ordered_trie_node_t() { this->force_to_leaf(); }
+  ordered_trie_node_t& operator=(ordered_trie_node_t x) {
+    swap(*this, x);
+    return *this;
+  }
+  friend inline void swap(ordered_trie_node_t& a, ordered_trie_node_t& b) {
+    using namespace std;
+    swap(static_cast<base_type&>(a), static_cast<base_type>(b));
     swap(a.parent_m, b.parent_m);
     swap(a.children_m, b.children_m);
   }
-  inline unordered_trie_node_t* parent() const { return parent_m; }
-  unordered_trie_node_t* first_child() const {
-    unordered_trie_node_t* result = NULL;
-    auto it = children_m.begin();
-    if (it != children_m.end()) {
-      result = *it;
+  children_type& children() { return children_m; }
+  const children_type& children() const { return children_m; }
+private:
+  children_type children_m;
+}; // ordered_trie_node_t
+
+template<typename Node>
+class trie_path_t {
+public:
+  typedef Node node_type;
+  typedef typename node_type::element_type element_type;
+protected:
+  typedef std::vector<const node_type*> nodes_type;
+  class iterator_t;
+public:
+  trie_path_t() : nodes_m() {}
+  trie_path_t(const node_type* oldest, const node_type* youngest) : nodes_m() {
+    nodes_m.push_back(NULL);
+    for(; youngest != oldest; youngest = youngest->parent()) {
+      nodes_m.push_back(youngest);
     }
-    return result;
   }
-  unordered_trie_node_t* last_child() const {
-    unordered_trie_node_t* result = NULL;
-    auto it = children_m.rbegin();
-    if (it != children_m.rend()) {
-      result = *it;
-    }
-    return result;
+  typedef iterator_t iterator;
+  typedef iterator_t const_iterator;
+  const_iterator begin() const { return const_iterator(nodes_m.rbegin()); }
+  const_iterator end() const { return const_iterator(--nodes_m.rend()); }
+private:
+  nodes_type nodes_m;
+}; // trie_path_t
+
+template<typename Node>
+class trie_path_t<Node>::iterator_t : public std::iterator<std::forward_iterator_tag, const element_type> {
+protected:
+  typedef std::iterator<std::forward_iterator_tag, const element_type> base_type;
+  typedef typename nodes_type::const_reverse_iterator at_type;
+  friend class trie_path_t;
+  inline iterator_t(at_type x) : at_m(std::move(x)) {}
+public:
+  inline iterator_t() : at_m() {}
+  inline iterator_t(const iterator_t&) = default;
+  inline iterator_t& operator=(const iterator_t& x) {
+    at_m = x.at_m;
+    return *this;
   }
-  unordered_trie_node_t* child(const element_type& x) const {
-    unordered_trie_node_t* result = NULL;
-    base_type query(x);
-    auto it = children_m.find(static_cast<unordered_trie_node_t*>(&query));
-    if (it != children_m.end()) {
-      result = *it;
-    }
-    return *it;
+  inline iterator_t& operator++() { ++at_m; return *this; }
+  inline iterator_t operator++(int) { iterator_t x(*this); operator++(); return x; }
+  inline bool operator==(const iterator_t& x) const { return *at_m == *x.at_m; }
+  inline bool operator!=(const iterator_t& x) const { return ! operator==(x); }
+  inline typename base_type::reference operator*() const { return (**at_m).element(); }
+  inline typename base_type::pointer operator->() const { return &(**at_m).element(); }
+private:
+  at_type at_m;
+}; // trie_path_t<Node>::iterator_t
+
+template<typename Node>
+class predfs_trie_traverser_t {
+public:
+  typedef trie_path_t<const Node> path_type;
+  inline predfs_trie_traverser_t() : root_m(NULL), node_m(NULL) {}
+  inline predfs_trie_traverser_t(Node* root, Node* node)
+    : root_m(root), node_m(node)
+  {}
+  inline predfs_trie_traverser_t(const predfs_trie_traverser_t&) = default;
+  inline predfs_trie_traverser_t& operator=(const predfs_trie_traverser_t& x) {
+    swap(*this, x);
+    return *this;
   }
-  std::pair<unordered_trie_node_t*, bool> make_child(const element_type& x) {
-    base_type query(x);
-    auto p = children_m.insert(static_cast<unordered_trie_node_t*>(&query));
-    if (p.second) {
-      const_cast<unordered_trie_node_t*&>(*(p.first))
-	= new unordered_trie_node_t(x, this);
-    }
-    return std::pair<unordered_trie_node_t*, bool>(*p.first, p.second);
+  friend inline void swap(predfs_trie_traverser_t& a, predfs_trie_traverser_t& b) {
+    using namespace std;
+    swap(a.root_m, b.root_m);
+    swap(a.node_m, b.node_m);
   }
-  unordered_trie_node_t* disown_child(unordered_trie_node_t* x) {
-    return (children_m.erase(x) > 0) ? x : NULL;
-  }
-  unordered_trie_node_t* disown_child(const element_type& x) {
-    base_type query(x);
-    return disown_child(*children_m.find(static_cast<unordered_trie_node_t*>(&query)));
-  }
-  bool leaf_b() const { return children_m.empty(); }
-  void force_to_leaf() {
-    for (auto it = children_m.begin(); it != children_m.end(); ++it) {
-      delete *it;
-    }
-    children_m.clear();
-  }
-  unordered_trie_node_t* previous_sibling() const {
-    unordered_trie_node_t* result = NULL;
-    if (parent_m != NULL) {
-      auto it = parent_m->children_m.find(const_cast<unordered_trie_node_t*>(this));
-      if (it != parent_m->children_m.end() &&
-	  it != parent_m->children_m.begin()) {
-	--it;
-	result = *it;
-      }
-    }
-    return result;
-  }
-  unordered_trie_node_t* next_sibling() const {
-    unordered_trie_node_t* result = NULL;
-    if (parent_m != NULL) {
-      auto it = parent_m->children_m.find(const_cast<unordered_trie_node_t*>(this));
-      if (it != parent_m->children_m.end()) {
-	++it;
-	if (it != parent_m->children_m.end()) {
-	  result = *it;
+  predfs_trie_traverser_t& operator++() {
+    if (node_m != NULL) {
+      if (node_m->leaf_b()) {
+	// leaf
+	Node* next = node_m->next_sibling();
+	while (next == NULL && node_m != root_m) {
+	  node_m = node_m->parent();
+	  next = node_m->next_sibling();
 	}
+	node_m = next;
+      } else {
+	// not a leaf
+	node_m = node_m->first_child();
       }
     }
+    return *this;
+  }
+  inline predfs_trie_traverser_t operator++(int) {
+    predfs_trie_traverser_t x(*this);
+    operator++();
+    return x;
+  }
+  inline bool operator==(const predfs_trie_traverser_t& x) const {
+    return node_m == x.node_m;
+  }
+  inline bool operator!=(const predfs_trie_traverser_t& x) const {
+    return ! operator==(x);
+  }
+  inline Node* root() const { return root_m; }
+  inline Node* node() const { return node_m; }
+  inline path_type path_to_node() const {
+    return path_type(root_m, node_m);
+  }
+protected:
+  Node* root_m;
+  Node* node_m;
+}; // predfs_trie_traverser_t
+
+
+template<typename Derived, typename Node, template<typename...> class Traverser>
+class trie_crtp_t {
+  template<typename INode> class iterator_t;
+  Derived& me() { return static_cast<Derived&>(*this); }
+  const Derived& me() const { return static_cast<const Derived&>(*this); }
+public:
+  typedef iterator_t<Node> iterator;
+  typedef iterator_t<const Node> const_iterator;
+  inline const_iterator cbegin() const { return const_iterator(me()); }
+  inline const_iterator cend() const { return const_iterator(); }
+  inline iterator begin() { return iterator(me()); }
+  inline iterator end() { return iterator(); }
+  inline const_iterator begin() const { return cbegin(); }
+  inline const_iterator end() const { return cend(); }
+  inline trie_path_t<const Node> path_to(const const_iterator& it) const {
+    return trie_path_t<const Node>(&me().root(), &*it);
+  }
+  inline trie_path_t<Node> path_to(const iterator& it) {
+    return trie_path_t<Node>(&me().root(), &*it);
+  }
+  template<typename Key> std::pair<Node*, bool> insert(Key&& key) {
+    std::pair<Node*, bool> result(&me().root(), false);
+    for (const auto& element : key) {
+      result = result.first->make_child(element);
+    }
     return result;
+  }
+}; // trie_crtp_t
+
+
+template<typename Derived, typename Node, template<typename...> class Traverser>
+template<typename INode>
+class trie_crtp_t<Derived, Node, Traverser>::iterator_t {
+public:
+  inline iterator_t() : traverser_m(), trie_m(NULL) {}
+  template<typename Trie>
+  inline iterator_t(Trie& trie)
+    : traverser_m(&trie.root(), &trie.root()), trie_m(&trie)
+  {}
+  inline iterator_t(const iterator_t&) = default;
+  inline iterator_t(iterator_t&&) = default;
+  inline iterator_t& operator=(iterator_t x) {
+    swap(*this, x);
+    return *this;
+  }
+  friend inline void swap(iterator_t& a, iterator_t& b) {
+    using namespace std;
+    swap(a.traverser_m, b.traverser_m);
+    swap(a.trie_m, b.trie_m);
+  }
+  iterator_t& operator++() {
+    ++traverser_m;
+    while (traverser_m.node() != NULL &&
+	   ! trie_m->validate(traverser_m.node())) {
+      ++traverser_m;
+    }
+    return *this;
+  }
+  iterator_t operator++(int) { iterator_t x(*this); operator++(); return x; }
+  inline bool operator==(const iterator_t& x) const {
+    return traverser_m == x.traverser_m;
+  }
+  inline bool operator!=(const iterator_t& x) const { return ! operator==(x); }
+  INode& operator*() const { return *traverser_m.node(); }
+  INode* operator->() const { return traverser_m.node(); }
+private:
+  Traverser<INode> traverser_m;
+  const Derived* trie_m;
+};
+
+
+template<typename Node, template<typename...> class Traverser = predfs_trie_traverser_t>
+class basic_trie : public trie_crtp_t<basic_trie<Node>, Node, Traverser> {
+  typedef trie_crtp_t<basic_trie<Node>, Node, Traverser> base_type;
+public:
+  inline basic_trie() : base_type() {}
+  inline basic_trie(const basic_trie&) = delete;
+  inline basic_trie(basic_trie&&) = default;
+  Node& root() { return root_m; }
+  const Node& root() const { return root_m; }
+  inline bool validate(const Node* node) const { return true; }
+private:
+  Node root_m;
+}; // basic_trie
+
+
+template<typename Node, template<typename...> class Traverser = predfs_trie_traverser_t>
+class trie_set : public trie_crtp_t<trie_set<Node>, Node, Traverser> {
+  typedef trie_crtp_t<trie_set<Node>, Node, Traverser> base_type;
+public:
+  inline trie_set() : root_m(), members_m() {}
+  inline trie_set(const trie_set&) = delete;
+  inline trie_set(trie_set&&) = default;
+  Node& root() { return root_m; }
+  const Node& root() const { return root_m; }
+  template<typename Key> std::pair<Node*, bool> insert(Key&& key) {
+    std::pair<Node*, bool> result(base_type::insert(std::forward<Key>(key)));
+    members_m.insert(result.first);
+    return result;
+  }
+  inline bool validate(const Node* node) const {
+    return members_m.find(node) != members_m.end();
   }
 private:
-  unordered_trie_node_t* parent_m;
-  children_type children_m;
-}; // unordered_trie_node_t
+  Node root_m;
+  std::unordered_set<const Node*> members_m;
+};
+
+template<typename Element>
+class ordered_trie_set : public trie_crtp_t<trie_set<ordered_trie_node_t<Element> >, ordered_trie_node_t<Element>, predfs_trie_traverser_t> {
+  typedef ordered_trie_node_t<Element> node_type;
+  typedef trie_crtp_t<trie_set<node_type>, node_type, predfs_trie_traverser_t> base_type;
+public:
+  inline ordered_trie_set() : root_m(), members_m() {}
+  inline ordered_trie_set(const ordered_trie_set&) = delete;
+  inline ordered_trie_set(ordered_trie_set&&) = default;
+  node_type& root() { return root_m; }
+  const node_type& root() const { return root_m; }
+  template<typename Key> std::pair<node_type*, bool> insert(Key&& key) {
+    std::pair<node_type*, bool> result(base_type::insert(std::forward<Key>(key)));
+    members_m.insert(result.first);
+    return result;
+  }
+  inline bool validate(const node_type* node) const {
+    return members_m.find(node) != members_m.end();
+  }
+private:
+  node_type root_m;
+  std::unordered_set<const node_type*> members_m;
+};
 
 
 /******************************************************************************/#endif
