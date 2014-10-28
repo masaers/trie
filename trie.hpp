@@ -313,13 +313,13 @@ public:
   inline bool operator!=(const predfs_trie_traverser_t& x) const {
     return ! operator==(x);
   }
-  inline Node* root() const { return root_m; }
+  inline const Node* root() const { return root_m; }
   inline Node* node() const { return node_m; }
   inline path_type path_to_node() const {
     return path_type(root_m, node_m);
   }
 protected:
-  Node* root_m;
+  const Node* root_m;
   Node* node_m;
 }; // predfs_trie_traverser_t
 
@@ -339,17 +339,64 @@ public:
   inline const_iterator begin() const { return cbegin(); }
   inline const_iterator end() const { return cend(); }
   inline trie_path_t<const Node> path_to(const const_iterator& it) const {
-    return trie_path_t<const Node>(&me().root(), &*it);
+    return trie_path_t<const Node>(me().root(), &*it);
   }
   inline trie_path_t<Node> path_to(const iterator& it) {
-    return trie_path_t<Node>(&me().root(), &*it);
+    return trie_path_t<Node>(me().root(), &*it);
   }
-  template<typename Key> std::pair<Node*, bool> insert(Key&& key) {
-    std::pair<Node*, bool> result(&me().root(), false);
+  template<typename Key> inline std::pair<iterator, bool> insert(Key&& key) {
+    const auto p(force_node(std::forward<Key>(key)));
+    return std::pair<iterator, bool>(iterator(me(), p.first), p.second);
+  }
+  inline bool empty() const { return me().root() != NULL && ! me().root()->leaf_b(); }
+  inline void clear() { me().root()->force_to_leaf(); }
+  template<typename Key> inline const_iterator cfind(Key&& key) const {
+    return const_iterator(me(), cfind_node(std::forward<Key>(key)));
+  }
+  template<typename Key> inline const_iterator find(Key&& key) const {
+    return cfind(std::forward<Key>(key));
+  }
+  template<typename Key> inline iterator find(Key&& key) {
+    return iterator(me(), find_node(std::forward<Key>(key)));
+  }
+  void erase_suffixes(iterator it) {
+    it->force_to_leaf();
+  }
+  template<typename Key> void erase_suffixes(Key&& key) {
+    find_node(std::forward<Key>(key))->force_to_leaf();
+  }
+protected:
+  template<typename Key> inline Node* find_node(Key&& key) {
+    return const_cast<Node*>(cfind_node(std::forward<Key>(key)));
+  }
+  template<typename Key> const Node* cfind_node(Key&& key) const {
+    using namespace std;
+    const Node* at = me().root();
+    auto it = begin(key);
+    while (at != NULL && it != end(key)) {
+      at = at->child(*it);
+      ++it;
+    }
+    if (! me().validate(at)) {
+      at = NULL;
+    }
+    return at;
+  }
+  template<typename Key> std::pair<Node*, bool> force_node(Key&& key) {
+    std::pair<Node*, bool> result(me().root(), false);
     for (const auto& element : key) {
       result = result.first->make_child(element);
     }
     return result;
+  }
+  Node* prune_invalid_path(Node* node) {
+    while (node != me().root() && node->leaf_b() && ! me().validate(node)) {
+      node->parent()->disown_child(node);
+      Node* next = node->parent();
+      delete node;
+      node = next;
+    }
+    return node;
   }
 }; // trie_crtp_t
 
@@ -359,10 +406,16 @@ template<typename INode>
 class trie_crtp_t<Derived, Node, Traverser>::iterator_t {
 public:
   inline iterator_t() : traverser_m(), trie_m(NULL) {}
-  template<typename Trie>
-  inline iterator_t(Trie& trie)
-    : traverser_m(&trie.root(), &trie.root()), trie_m(&trie)
-  {}
+  template<typename Trie> inline iterator_t(Trie& trie)
+    : traverser_m(trie.root(), trie.root()), trie_m(&trie)
+  {
+    make_valid();
+  }
+  template<typename Trie> inline iterator_t(Trie& trie, INode* node)
+    : traverser_m(trie.root(), node), trie_m(&trie)
+  {
+    make_valid();
+  }
   inline iterator_t(const iterator_t&) = default;
   inline iterator_t(iterator_t&&) = default;
   inline iterator_t& operator=(iterator_t x) {
@@ -376,10 +429,7 @@ public:
   }
   iterator_t& operator++() {
     ++traverser_m;
-    while (traverser_m.node() != NULL &&
-	   ! trie_m->validate(traverser_m.node())) {
-      ++traverser_m;
-    }
+    make_valid();
     return *this;
   }
   iterator_t operator++(int) { iterator_t x(*this); operator++(); return x; }
@@ -390,9 +440,15 @@ public:
   INode& operator*() const { return *traverser_m.node(); }
   INode* operator->() const { return traverser_m.node(); }
 private:
+  void make_valid() {
+    while (traverser_m.node() != NULL &&
+	   ! trie_m->validate(traverser_m.node())) {
+      ++traverser_m;
+    }
+  }
   Traverser<INode> traverser_m;
   const Derived* trie_m;
-};
+}; // trie_crtp_t::iterator_t
 
 
 template<typename Node, template<typename...> class Traverser = predfs_trie_traverser_t>
@@ -402,8 +458,8 @@ public:
   inline basic_trie() : base_type() {}
   inline basic_trie(const basic_trie&) = delete;
   inline basic_trie(basic_trie&&) = default;
-  Node& root() { return root_m; }
-  const Node& root() const { return root_m; }
+  Node* root() { return &root_m; }
+  const Node* root() const { return &root_m; }
   inline bool validate(const Node* node) const { return true; }
 private:
   Node root_m;
@@ -411,49 +467,51 @@ private:
 
 
 template<typename Node, template<typename...> class Traverser = predfs_trie_traverser_t>
-class trie_set : public trie_crtp_t<trie_set<Node>, Node, Traverser> {
-  typedef trie_crtp_t<trie_set<Node>, Node, Traverser> base_type;
+class basic_trie_set : public trie_crtp_t<basic_trie_set<Node>, Node, Traverser> {
+  typedef trie_crtp_t<basic_trie_set<Node>, Node, Traverser> base_type;
 public:
-  inline trie_set() : root_m(), members_m() {}
-  inline trie_set(const trie_set&) = delete;
-  inline trie_set(trie_set&&) = default;
-  Node& root() { return root_m; }
-  const Node& root() const { return root_m; }
-  template<typename Key> std::pair<Node*, bool> insert(Key&& key) {
-    std::pair<Node*, bool> result(base_type::insert(std::forward<Key>(key)));
-    members_m.insert(result.first);
-    return result;
-  }
+  typedef typename base_type::iterator iterator;
+  typedef typename base_type::const_iterator const_iterator;
+  inline basic_trie_set() : root_m(), members_m() {}
+  inline basic_trie_set(const basic_trie_set&) = delete;
+  inline basic_trie_set(basic_trie_set&&) = default;
+  Node* root() { return &root_m; }
+  const Node* root() const { return &root_m; }
   inline bool validate(const Node* node) const {
     return members_m.find(node) != members_m.end();
   }
-private:
+  template<typename Key> inline std::pair<iterator, bool> insert(Key&& key) {
+    const auto p(base_type::force_node(std::forward<Key>(key)));
+    members_m.insert(p.first);
+    return std::pair<iterator, bool>(iterator(*this, p.first), p.second);
+  }
+  void clear() {
+    base_type::clear();
+    members_m.clear();
+  }
+  iterator erase(iterator it) {
+    return erase(&*it);
+  }
+  template<typename Key> iterator erase(Key&& key) {
+    return erase(find_node(std::forward<Key>(key)));
+  }
+  std::size_t size() const { return members_m.size(); }
+  bool empty() const { return members_m.empty(); }
+  // TODO Implement erase_suffixes so that members are maintained.
+protected:
+  iterator erase(Node* node) {
+    members_m.erase(node);
+    return iterator(this, prune_invalid_path(node));
+  }
   Node root_m;
   std::unordered_set<const Node*> members_m;
-};
+}; // basic_trie_set
 
 template<typename Element>
-class ordered_trie_set : public trie_crtp_t<trie_set<ordered_trie_node_t<Element> >, ordered_trie_node_t<Element>, predfs_trie_traverser_t> {
-  typedef ordered_trie_node_t<Element> node_type;
-  typedef trie_crtp_t<trie_set<node_type>, node_type, predfs_trie_traverser_t> base_type;
-public:
-  inline ordered_trie_set() : root_m(), members_m() {}
-  inline ordered_trie_set(const ordered_trie_set&) = delete;
-  inline ordered_trie_set(ordered_trie_set&&) = default;
-  node_type& root() { return root_m; }
-  const node_type& root() const { return root_m; }
-  template<typename Key> std::pair<node_type*, bool> insert(Key&& key) {
-    std::pair<node_type*, bool> result(base_type::insert(std::forward<Key>(key)));
-    members_m.insert(result.first);
-    return result;
-  }
-  inline bool validate(const node_type* node) const {
-    return members_m.find(node) != members_m.end();
-  }
-private:
-  node_type root_m;
-  std::unordered_set<const node_type*> members_m;
-};
+using ordered_trie_set = basic_trie_set<ordered_trie_node_t<Element> >;
+
+template<typename Element>
+using unordered_trie_set = basic_trie_set<unordered_trie_node_t<Element> >;
 
 
 /******************************************************************************/#endif
