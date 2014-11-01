@@ -1,4 +1,4 @@
-#include "trie.hpp"
+#include "trie_set.hpp"
 #include <vector>
 #include <string>
 #include <iostream>
