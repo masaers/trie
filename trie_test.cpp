@@ -5,6 +5,8 @@
 
 int main(const int argc, const char** argv) {
   using namespace std;
+  using namespace com_masaers;
+  
   vector<string> keys{ "aa", "a", "abb", "aaaa" };
 
   // TODO test erase_suffixes, erase, clear, empty, size, find, cfind
