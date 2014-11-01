@@ -1,6 +1,6 @@
-#ifndef TRIE_SET_HPP
-#define TRIE_SET_HPP
-#include "trie.hpp"
+#ifndef COM_MASAERS_TRIE_SET_HPP
+#define COM_MASAERS_TRIE_SET_HPP
+#include "trie_internal.hpp"
 
 namespace com_masaers {
 

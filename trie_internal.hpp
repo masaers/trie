@@ -1,5 +1,5 @@
-#ifndef TRIE_INTERNAL_HPP
-#define TRIE_INTERNAL_HPP
+#ifndef COM_MASAERS_TRIE_INTERNAL_HPP
+#define COM_MASAERS_TRIE_INTERNAL_HPP
 #include <set>
 #include <unordered_set>
 #include <vector>
