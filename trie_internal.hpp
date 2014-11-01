@@ -83,7 +83,7 @@ namespace com_masaers {
 	if (it != me().children().end()) {
 	  result = *it;
 	}
-	return *it;
+	return result;
       }
       inline std::pair<node_type*, bool> make_child(const element_type& x) {
 	base_type query(x);
@@ -373,22 +373,21 @@ namespace com_masaers {
 	return const_cast<Node*>(cfind_node(std::forward<Key>(key)));
       }
       template<typename Key> const Node* cfind_node(Key&& key) const {
-	using namespace std;
-	const Node* at = me().root();
-	auto it = begin(key);
-	while (at != NULL && it != end(key)) {
-	  at = at->child(*it);
+	const Node* result = me().root();
+	auto it = std::begin(key);
+	while (result != NULL && it != std::end(key)) {
+	  result = result->child(*it);
 	  ++it;
 	}
-	if (! me().validate(at)) {
-	  at = NULL;
+	if (result != NULL && ! me().validate(result)) {
+	  result = NULL;
 	}
-	return at;
+	return result;
       }
       template<typename Key> std::pair<Node*, bool> force_node(Key&& key) {
 	std::pair<Node*, bool> result(me().root(), false);
-	for (const auto& element : key) {
-	  result = result.first->make_child(element);
+	for (auto it = std::begin(key); it != std::end(key); ++it) {
+	  result = result.first->make_child(*it);
 	}
 	return result;
       }

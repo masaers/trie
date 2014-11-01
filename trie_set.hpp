@@ -33,7 +33,7 @@ namespace com_masaers {
 	return erase(&*it);
       }
       template<typename Key> iterator erase(Key&& key) {
-	return erase(find_node(std::forward<Key>(key)));
+	return erase(base_type::find_node(std::forward<Key>(key)));
       }
       std::size_t size() const { return members_m.size(); }
       bool empty() const { return members_m.empty(); }
@@ -41,7 +41,7 @@ namespace com_masaers {
     protected:
       iterator erase(Node* node) {
 	members_m.erase(node);
-	return iterator(this, prune_invalid_path(node));
+	return iterator(*this, base_type::prune_invalid_path(node));
       }
       Node root_m;
       std::unordered_set<const Node*> members_m;

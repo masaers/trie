@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
+// c
+#include <cassert>
 
 int main(const int argc, const char** argv) {
   using namespace std;
@@ -11,7 +13,7 @@ int main(const int argc, const char** argv) {
   
   vector<string> keys{ "aa", "a", "abb", "aaaa" };
 
-  // TODO test erase_suffixes, erase, clear, empty, size, find, cfind
+  // TODO test erase_suffixes
   unordered_trie_set<char> uts;
   for (const auto& key : keys) {
     uts.insert(key);
@@ -23,7 +25,21 @@ int main(const int argc, const char** argv) {
     }
     cout << '"' << endl;
   }
-
+  {
+    assert(uts.size() == keys.size());
+    assert(uts.find(string("aa")) != uts.end());
+    assert(uts.cfind(string("aa")) != uts.cend());
+    uts.erase(string("aa"));
+    assert(uts.size() == keys.size() - 1);
+    assert(uts.find(string("aa")) == uts.end());
+    assert(uts.cfind(string("aa")) == uts.cend());
+    uts.clear();
+    assert(uts.empty());
+    assert(uts.size() == 0);
+    assert(uts.find(string("a")) == uts.end());
+    assert(uts.cfind(string("a")) == uts.cend());
+  }
+  
   ordered_trie_set<char> ots;
   for (const auto& key : keys) {
     ots.insert(key);
