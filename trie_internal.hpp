@@ -344,8 +344,14 @@ namespace com_masaers {
       inline trie_path_t<const Node> path_to(const const_iterator& it) const {
 	return trie_path_t<const Node>(me().root(), &*it);
       }
-      inline trie_path_t<Node> path_to(const iterator& it) {
+      inline trie_path_t<Node> path_to(const iterator& it) const {
 	return trie_path_t<Node>(me().root(), &*it);
+      }
+      inline trie_path_t<const Node> path_to(const Node& node) const {
+	return trie_path_t<const Node>(me().root(), &node);
+      }
+      inline trie_path_t<Node> path_to(Node& node) const {
+	return trie_path_t<Node>(me().root(), &node);
       }
       template<typename Key> inline std::pair<iterator, bool> insert(Key&& key) {
 	const auto p(force_node(std::forward<Key>(key)));
@@ -408,7 +414,7 @@ namespace com_masaers {
     class trie_crtp_t<Derived, Node, Traverser>::iterator_t {
     public:
       inline iterator_t() : traverser_m(), trie_m(NULL) {}
-      template<typename Trie> inline iterator_t(Trie& trie)
+      template<typename Trie> explicit inline iterator_t(Trie& trie)
 	: traverser_m(trie.root(), trie.root()), trie_m(&trie)
       {
 	make_valid();

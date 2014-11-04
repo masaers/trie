@@ -51,7 +51,13 @@ int main(const int argc, const char** argv) {
     }
     cout << '"' << endl;
   }
-
+  for (auto& node : ots) {
+    cout << '"';
+    for (const auto& e : ots.path_to(node)) {
+      cout << e;
+    }
+    cout << '"' << endl;
+  }
   
   return EXIT_SUCCESS;
 }
