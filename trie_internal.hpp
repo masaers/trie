@@ -270,6 +270,14 @@ namespace com_masaers {
       at_type at_m;
     }; // trie_path_t<Node>::iterator_t
 
+    //
+    // TODO Factor out common parts into a
+    // dfs_trie_traverser_crtp_t. Factor out the existing ++-operators
+    // as pre_next and post_next, and add pre_prev and post_prev to
+    // the crtp base class. Remake the two existing traversers as
+    // bidirectional and circular (++ after end takes you to the
+    // beginning).
+    //
     template<typename Node>
     class predfs_trie_traverser_t {
     public:
@@ -326,7 +334,72 @@ namespace com_masaers {
       Node* node_m;
     }; // predfs_trie_traverser_t
 
-
+    
+    template<typename Node>
+    class postdfs_trie_traverser_t {
+    public:
+      typedef trie_path_t<const Node> path_type;
+      inline postdfs_trie_traverser_t() : root_m(NULL), node_m(NULL) {}
+      inline postdfs_trie_traverser_t(Node* root, Node* node)
+	: root_m(root), node_m(plunge_pre(node))
+      {}
+      inline postdfs_trie_traverser_t(const postdfs_trie_traverser_t&) = default;
+      inline postdfs_trie_traverser_t& operator=(const postdfs_trie_traverser_t& x) {
+	swap(*this, x);
+	return *this;
+      }
+      friend inline void swap(postdfs_trie_traverser_t& a, postdfs_trie_traverser_t& b) {
+	using namespace std;
+	swap(a.root_m, b.root_m);
+	swap(a.node_m, b.node_m);
+      }
+      postdfs_trie_traverser_t& operator++() {
+	if (node_m != NULL) {
+	  if (node_m == root_m) {
+	    // At root, cannot proceed beyond.
+	    node_m = NULL;
+	  } else {
+	    // At valid node dominated by the root.
+	    // Try to proceed sidways and plunge, go up if not successfull.
+	    Node* next = node_m->next_sibling();
+	    if (next != NULL) {
+	      next = plunge_pre(next);
+	    } else {
+	      next = node_m->parent();
+	    }
+	    node_m = next;
+	  }
+	}
+	return *this;
+      }
+      inline postdfs_trie_traverser_t operator++(int) {
+	postdfs_trie_traverser_t x(*this);
+	operator++();
+	return x;
+      }
+      inline bool operator==(const postdfs_trie_traverser_t& x) const {
+	return node_m == x.node_m;
+      }
+      inline bool operator!=(const postdfs_trie_traverser_t& x) const {
+	return ! operator==(x);
+      }
+      inline const Node* root() const { return root_m; }
+      inline Node* node() const { return node_m; }
+      inline path_type path_to_node() const {
+	return path_type(root_m, node_m);
+      }
+    protected:
+      inline static Node* plunge_pre(Node* node) {
+	while (! node->leaf_b()) {
+	  node = node->first_child();
+	}
+	return node;
+      }
+      const Node* root_m;
+      Node* node_m;
+    }; // postdfs_trie_traverser_t
+    
+    
     template<typename Derived, typename Node, template<typename...> class Traverser>
     class trie_crtp_t {
       template<typename INode> class iterator_t;
