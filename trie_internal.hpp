@@ -272,10 +272,9 @@ namespace com_masaers {
 
     
     //
-    // TODO Add pre_prev and post_prev to the crtp base class. Remake
-    // predfs and postdfs as bidirectional and circular (++ at end
-    // takes you to the beginning, and -- at end takes you to the
-    // reverse beginning).
+    // TODO Test pre_prev and post_prev in the crtp base class.  Make
+    // predfs and postdfs bidirectional. Make reverse versions of
+    // predfs and postdfs.
     //
     template<typename Deriv, typename Node>
     class dfs_trie_traverser_crtp_t {
@@ -343,9 +342,44 @@ namespace com_masaers {
 	  }
 	}
       }
+      void pre_prev() {
+	if (node_m != NULL) {
+	  if (node_m == root_m) {
+	    node_m = NULL;
+	  } else {
+	    Node* next = node_m->prev_sibling();
+	    if (next != NULL) {
+	      next = post_plunge(next);
+	    } else {
+	      next = node_m->parent();
+	    }
+	    node_m = next;
+	  }
+	}
+      }
+      void post_prev() {
+	if (node_m != NULL) {
+	  if (node_m->leaf_b()) {
+	    Node* next = node_m->prev_sibling();
+	    while (next == NULL && node_m != root_m) {
+	      node_m = node_m->parent();
+	      next = node_m->next_sibling();
+	    }
+	    node_m = next;
+	  } else {
+	    node_m = node_m->last_child();
+	  }
+	}
+      }
       inline static Node* pre_plunge(Node* node) {
 	while (! node->leaf_b()) {
 	  node = node->first_child();
+	}
+	return node;
+      }
+      inline static Node* post_plunge(Node* node) {
+	while (! node->leaf_b()) {
+	  node = node->last_child();
 	}
 	return node;
       }
