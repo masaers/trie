@@ -272,9 +272,7 @@ namespace com_masaers {
 
     
     //
-    // TODO Test pre_prev and post_prev in the crtp base class.  Make
-    // predfs and postdfs bidirectional. Make reverse versions of
-    // predfs and postdfs.
+    // TODO Make reverse iterators.
     //
     template<typename Deriv, typename Node>
     class dfs_trie_traverser_crtp_t {
@@ -347,7 +345,7 @@ namespace com_masaers {
 	  if (node_m == root_m) {
 	    node_m = NULL;
 	  } else {
-	    Node* next = node_m->prev_sibling();
+	    Node* next = node_m->previous_sibling();
 	    if (next != NULL) {
 	      next = post_plunge(next);
 	    } else {
@@ -360,10 +358,10 @@ namespace com_masaers {
       void post_prev() {
 	if (node_m != NULL) {
 	  if (node_m->leaf_b()) {
-	    Node* next = node_m->prev_sibling();
+	    Node* next = node_m->previous_sibling();
 	    while (next == NULL && node_m != root_m) {
 	      node_m = node_m->parent();
-	      next = node_m->next_sibling();
+	      next = node_m->previous_sibling();
 	    }
 	    node_m = next;
 	  } else {
@@ -392,33 +390,64 @@ namespace com_masaers {
     public:
       inline predfs_trie_traverser_t() : base_type() {}
       inline predfs_trie_traverser_t(const Node* root, Node* node) : base_type(root, node) {}
-      predfs_trie_traverser_t& operator++() {
+      inline predfs_trie_traverser_t& operator++() {
 	base_type::pre_next();
 	return *this;
       }
-      predfs_trie_traverser_t operator++(int) {
+      inline predfs_trie_traverser_t operator++(int) {
 	predfs_trie_traverser_t result(*this);
 	operator++();
 	return result;
       }
     }; // predfs_trie_traverser_t
     template<typename Node>
+    class rpredfs_trie_traverser_t : public dfs_trie_traverser_crtp_t<rpredfs_trie_traverser_t<Node>, Node> {
+      typedef dfs_trie_traverser_crtp_t<rpredfs_trie_traverser_t<Node>, Node> base_type;
+    public:
+      inline rpredfs_trie_traverser_t() : base_type() {}
+      inline rpredfs_trie_traverser_t(const Node* root, Node* node) : base_type(root, base_type::post_plunge(node)) {}
+      inline rpredfs_trie_traverser_t& operator++() {
+	base_type::pre_prev();
+	return *this;
+      }
+      inline rpredfs_trie_traverser_t operator++(int) {
+	rpredfs_trie_traverser_t result(*this);
+	operator++();
+	return result;
+      }
+    }; // rpredfs_trie_traverser_t
+    template<typename Node>
     class postdfs_trie_traverser_t : public dfs_trie_traverser_crtp_t<postdfs_trie_traverser_t<Node>, Node> {
       typedef dfs_trie_traverser_crtp_t<postdfs_trie_traverser_t<Node>, Node> base_type;
     public:
       inline postdfs_trie_traverser_t() : base_type() {}
       inline postdfs_trie_traverser_t(const Node* root, Node* node) : base_type(root, base_type::pre_plunge(node)) {}
-      postdfs_trie_traverser_t& operator++() {
+      inline postdfs_trie_traverser_t& operator++() {
 	base_type::post_next();
 	return *this;
       }
-      postdfs_trie_traverser_t operator++(int) {
+      inline postdfs_trie_traverser_t operator++(int) {
 	postdfs_trie_traverser_t result(*this);
 	operator++();
 	return result;
       }
     }; // postdfs_trie_traverser_t
-
+    template<typename Node>
+    class rpostdfs_trie_traverser_t : public dfs_trie_traverser_crtp_t<rpostdfs_trie_traverser_t<Node>, Node> {
+      typedef dfs_trie_traverser_crtp_t<rpostdfs_trie_traverser_t<Node>, Node> base_type;
+    public:
+      inline rpostdfs_trie_traverser_t() : base_type() {}
+      inline rpostdfs_trie_traverser_t(const Node* root, Node* node) : base_type(root, node) {}
+      inline rpostdfs_trie_traverser_t& operator++() {
+	base_type::post_prev();
+	return *this;
+      }
+      inline rpostdfs_trie_traverser_t operator++(int) {
+	rpostdfs_trie_traverser_t result(*this);
+	operator++();
+	return result;
+      }
+    }; // rpostdfs_trie_traverser_t
     
     
     template<typename Derived, typename Node, template<typename...> class Traverser>

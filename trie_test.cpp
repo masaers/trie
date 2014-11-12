@@ -29,6 +29,16 @@ int main(const int argc, const char** argv) {
       assert(git == end(gold));
     }
     {
+      typedef internal::rpredfs_trie_traverser_t<node_type> trav_type;
+      vector<string> gold{ "", "a", "aa", "aaa", "aaaa", "ab", "abb" };
+      auto git = gold.rbegin();
+      for (trav_type t(trie.root(), trie.root()); t != trav_type(); ++t) {
+	const auto key = t.path();
+	assert(string(begin(key), end(key)) == *git++);
+      }
+      assert(git == gold.rend());
+    }
+    {
       typedef internal::postdfs_trie_traverser_t<node_type> trav_type;
       vector<string> gold{ "aaaa", "aaa", "aa", "abb", "ab", "a", "" };
       auto git = begin(gold);
@@ -37,6 +47,16 @@ int main(const int argc, const char** argv) {
 	assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == end(gold));
+    }
+    {
+      typedef internal::rpostdfs_trie_traverser_t<node_type> trav_type;
+      vector<string> gold{ "aaaa", "aaa", "aa", "abb", "ab", "a", "" };
+      auto git = gold.rbegin();
+      for (trav_type t(trie.root(), trie.root()); t != trav_type(); t++) {
+	const auto key = t.path();
+	assert(string(begin(key), end(key)) == *git++);
+      }
+      assert(git == gold.rend());
     }
   }
   
