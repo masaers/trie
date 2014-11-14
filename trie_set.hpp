@@ -1,9 +1,10 @@
 #ifndef COM_MASAERS_TRIE_SET_HPP
 #define COM_MASAERS_TRIE_SET_HPP
 #include "trie_internal.hpp"
+#include <unordered_set>
 
 namespace com_masaers {
-
+  
   namespace internal {
     template<typename Node,
 	     template<typename...> class Traverser = predfs_trie_traverser_t,
@@ -53,12 +54,12 @@ namespace com_masaers {
   template<typename Element,
 	   typename Comp = std::less<Element> >
   using ordered_trie_set = internal::basic_trie_set<internal::ordered_trie_node_t<Element, Comp> >;
-
+  
   template<typename Element,
 	   typename Hash = std::hash<Element>,
 	   typename Equal = std::equal_to<Element> >
   using unordered_trie_set = internal::basic_trie_set<internal::unordered_trie_node_t<Element, Hash, Equal> >;
-
+  
 } // namespace com_masaers
 
 /******************************************************************************/
