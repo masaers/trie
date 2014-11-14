@@ -105,6 +105,27 @@ int main(const int argc, const char** argv) {
     }
     cout << '"' << endl;
   }
+  {
+    vector<string> gold{ "a", "aa", "aaaa", "abb" };
+    {
+      // Forward
+      auto git = gold.begin();
+      for (auto it = ots.begin(); it != ots.end(); ++it) {
+	const auto key = ots.path_to(*it);
+	assert(string(begin(key), end(key)) == *git++);
+      }
+      assert(git == gold.end());
+    }
+    {
+      // Reverse
+      auto git = gold.rbegin();
+      for (auto it = ots.rbegin(); it != ots.rend(); ++it) {
+	const auto key = ots.path_to(*it);
+	assert(string(begin(key), end(key)) == *git++);
+      }
+      assert(git == gold.rend());
+    }
+  }
   
   return EXIT_SUCCESS;
 }

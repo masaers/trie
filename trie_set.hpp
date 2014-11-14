@@ -5,9 +5,11 @@
 namespace com_masaers {
 
   namespace internal {
-    template<typename Node, template<typename...> class Traverser = predfs_trie_traverser_t>
-    class basic_trie_set : public trie_crtp_t<basic_trie_set<Node>, Node, Traverser> {
-      typedef trie_crtp_t<basic_trie_set<Node>, Node, Traverser> base_type;
+    template<typename Node,
+	     template<typename...> class Traverser = predfs_trie_traverser_t,
+	     template<typename...> class RTraverser = rpredfs_trie_traverser_t>
+    class basic_trie_set : public trie_crtp_t<basic_trie_set<Node>, Node, Traverser, RTraverser> {
+      typedef trie_crtp_t<basic_trie_set<Node>, Node, Traverser, RTraverser> base_type;
     public:
       typedef typename base_type::iterator iterator;
       typedef typename base_type::const_iterator const_iterator;

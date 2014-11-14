@@ -271,9 +271,6 @@ namespace com_masaers {
     }; // trie_path_t<Node>::iterator_t
 
     
-    //
-    // TODO Make reverse iterators.
-    //
     template<typename Deriv, typename Node>
     class dfs_trie_traverser_crtp_t {
       inline Deriv& me() { return static_cast<Deriv&>(*this); }
@@ -450,20 +447,30 @@ namespace com_masaers {
     }; // rpostdfs_trie_traverser_t
     
     
-    template<typename Derived, typename Node, template<typename...> class Traverser>
+    template<typename Derived, typename Node,
+	     template<typename...> class Traverser,
+	     template<typename...> class RTraverser>
     class trie_crtp_t {
-      template<typename INode> class iterator_t;
+      template<typename INode, template<typename...> class ITraverser> class iterator_t;
       Derived& me() { return static_cast<Derived&>(*this); }
       const Derived& me() const { return static_cast<const Derived&>(*this); }
     public:
-      typedef iterator_t<Node> iterator;
-      typedef iterator_t<const Node> const_iterator;
+      typedef iterator_t<Node, Traverser> iterator;
+      typedef iterator_t<const Node, Traverser> const_iterator;
+      typedef iterator_t<Node, RTraverser> reverse_iterator;
+      typedef iterator_t<const Node, RTraverser> reverse_const_iterator;
       inline const_iterator cbegin() const { return const_iterator(me()); }
       inline const_iterator cend() const { return const_iterator(); }
       inline iterator begin() { return iterator(me()); }
       inline iterator end() { return iterator(); }
       inline const_iterator begin() const { return cbegin(); }
       inline const_iterator end() const { return cend(); }
+      inline reverse_const_iterator crbegin() const { return reverse_const_iterator(me()); }
+      inline reverse_const_iterator crend() const { return reverse_const_iterator(); }
+      inline reverse_iterator rbegin() { return reverse_iterator(me()); }
+      inline reverse_iterator rend() { return reverse_iterator(); }
+      inline reverse_const_iterator rbegin() const { return crbegin(); }
+      inline reverse_const_iterator rend() const { return crend(); }
       inline trie_path_t<const Node> path_to(const const_iterator& it) const {
 	return trie_path_t<const Node>(me().root(), &*it);
       }
@@ -532,9 +539,11 @@ namespace com_masaers {
     }; // trie_crtp_t
 
 
-    template<typename Derived, typename Node, template<typename...> class Traverser>
-    template<typename INode>
-    class trie_crtp_t<Derived, Node, Traverser>::iterator_t {
+    template<typename Derived, typename Node,
+	     template<typename...> class Traverser,
+	     template<typename...> class RTraverser>
+    template<typename INode, template<typename...> class ITraverser>
+    class trie_crtp_t<Derived, Node, Traverser, RTraverser>::iterator_t {
     public:
       inline iterator_t() : traverser_m(), trie_m(NULL) {}
       template<typename Trie> explicit inline iterator_t(Trie& trie)
@@ -577,7 +586,7 @@ namespace com_masaers {
 	  ++traverser_m;
 	}
       }
-      Traverser<INode> traverser_m;
+      ITraverser<INode> traverser_m;
       const Derived* trie_m;
     }; // trie_crtp_t::iterator_t
 

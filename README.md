@@ -36,4 +36,4 @@ Since the whole point of a trie is to *not* store the keys explicitly in the str
       cout << endl;
     }
 
-This prints all the keys in the trie to `cout`. Why `const auto& node`? Because nodes are not copyable, so we must take them by reference, and although we need to make it `const`, we do not need mutability for printing.
+This prints all the keys in the trie to `cout`. Why `const auto& node`? Because nodes are not copyable, so we must take them by reference, and although we need not make it `const`, we do not need mutability for printing.
