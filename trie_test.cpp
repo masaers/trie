@@ -23,8 +23,8 @@ int main(const int argc, const char** argv) {
       vector<string> gold{ "", "a", "aa", "aaa", "aaaa", "ab", "abb" };
       auto git = begin(gold);
       for (trav_type t(trie.root(), trie.root()); t != trav_type(); ++t) {
-	const auto key = t.path();
-	assert(string(begin(key), end(key)) == *git++);
+        const auto key = t.path();
+        assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == end(gold));
     }
@@ -33,8 +33,8 @@ int main(const int argc, const char** argv) {
       vector<string> gold{ "", "a", "aa", "aaa", "aaaa", "ab", "abb" };
       auto git = gold.rbegin();
       for (trav_type t(trie.root(), trie.root()); t != trav_type(); ++t) {
-	const auto key = t.path();
-	assert(string(begin(key), end(key)) == *git++);
+        const auto key = t.path();
+        assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == gold.rend());
     }
@@ -43,8 +43,8 @@ int main(const int argc, const char** argv) {
       vector<string> gold{ "aaaa", "aaa", "aa", "abb", "ab", "a", "" };
       auto git = begin(gold);
       for (trav_type t(trie.root(), trie.root()); t != trav_type(); t++) {
-	const auto key = t.path();
-	assert(string(begin(key), end(key)) == *git++);
+        const auto key = t.path();
+        assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == end(gold));
     }
@@ -53,8 +53,8 @@ int main(const int argc, const char** argv) {
       vector<string> gold{ "aaaa", "aaa", "aa", "abb", "ab", "a", "" };
       auto git = gold.rbegin();
       for (trav_type t(trie.root(), trie.root()); t != trav_type(); t++) {
-	const auto key = t.path();
-	assert(string(begin(key), end(key)) == *git++);
+        const auto key = t.path();
+        assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == gold.rend());
     }
@@ -111,8 +111,8 @@ int main(const int argc, const char** argv) {
       // Forward
       auto git = gold.begin();
       for (auto it = ots.begin(); it != ots.end(); ++it) {
-	const auto key = ots.path_to(*it);
-	assert(string(begin(key), end(key)) == *git++);
+        const auto key = ots.path_to(*it);
+        assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == gold.end());
     }
@@ -120,8 +120,8 @@ int main(const int argc, const char** argv) {
       // Reverse
       auto git = gold.rbegin();
       for (auto it = ots.rbegin(); it != ots.rend(); ++it) {
-	const auto key = ots.path_to(*it);
-	assert(string(begin(key), end(key)) == *git++);
+        const auto key = ots.path_to(*it);
+        assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == gold.rend());
     }
