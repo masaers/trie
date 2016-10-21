@@ -11,6 +11,7 @@ namespace com_masaers {
              template<typename...> class RTraverser = rpredfs_trie_traverser_t>
     class basic_trie_set : public trie_crtp_t<basic_trie_set<Node>, Node, Traverser, RTraverser> {
       typedef trie_crtp_t<basic_trie_set<Node>, Node, Traverser, RTraverser> base_type;
+      friend base_type;
     public:
       typedef typename base_type::iterator iterator;
       typedef typename base_type::const_iterator const_iterator;
@@ -19,32 +20,25 @@ namespace com_masaers {
       inline basic_trie_set(basic_trie_set&&) = default;
       Node* root() { return &root_m; }
       const Node* root() const { return &root_m; }
-      inline bool validate(const Node* node) const {
-        return members_m.find(node) != members_m.end();
-      }
       template<typename Key>
       inline std::pair<iterator, bool> insert(Key&& key) {
-        const auto p(base_type::force_node(std::forward<Key>(key)));
-        members_m.insert(p.first);
-        return std::pair<iterator, bool>(iterator(*this, p.first), p.second);
+        Node* node = base_type::insert_node(std::forward<Key>(key)).first;
+        auto p = members_m.insert(node);
+        return std::pair<iterator, bool>(iterator(*this, node), p.second);
       }
       void clear() {
         base_type::clear();
         members_m.clear();
       }
-      iterator erase(iterator it) {
-        return erase(&*it);
-      }
-      template<typename Key> iterator erase(Key&& key) {
-        return erase(base_type::find_node(std::forward<Key>(key)));
-      }
       std::size_t size() const { return members_m.size(); }
       bool empty() const { return members_m.empty(); }
       // TODO Implement erase_suffixes so that members are maintained.
     protected:
-      iterator erase(Node* node) {
+      inline bool is_valid_node(const Node* node) const {
+        return members_m.find(node) != members_m.end();
+      }
+      void invalidate_node(const Node* node) {
         members_m.erase(node);
-        return iterator(*this, base_type::prune_invalid_path(node));
       }
       Node root_m;
       std::unordered_set<const Node*> members_m;

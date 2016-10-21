@@ -484,7 +484,7 @@ namespace com_masaers {
         return trie_path_t<Node>(me().root(), &node);
       }
       template<typename Key> inline std::pair<iterator, bool> insert(Key&& key) {
-        const auto p(force_node(std::forward<Key>(key)));
+        const auto p(insert_node(std::forward<Key>(key)));
         return std::pair<iterator, bool>(iterator(me(), p.first), p.second);
       }
       inline bool empty() const { return me().root() != NULL && ! me().root()->leaf_b(); }
@@ -498,11 +498,11 @@ namespace com_masaers {
       template<typename Key> inline iterator find(Key&& key) {
         return iterator(me(), find_node(std::forward<Key>(key)));
       }
-      void erase_suffixes(iterator it) {
-        it->force_to_leaf();
+      inline iterator erase(iterator it) {
+        return erase_node(&*it);
       }
-      template<typename Key> void erase_suffixes(Key&& key) {
-        find_node(std::forward<Key>(key))->force_to_leaf();
+      template<typename Key> inline iterator erase(Key&& key) {
+        return erase_node(find_node(std::forward<Key>(key)));
       }
     protected:
       template<typename Key> inline Node* find_node(Key&& key) {
@@ -515,20 +515,24 @@ namespace com_masaers {
           result = result->child(*it);
           ++it;
         }
-        if (result != NULL && ! me().validate(result)) {
+        if (result != NULL && ! me().is_valid_node(result)) {
           result = NULL;
         }
         return result;
       }
-      template<typename Key> std::pair<Node*, bool> force_node(Key&& key) {
+      template<typename Key> std::pair<Node*, bool> insert_node(Key&& key) {
         std::pair<Node*, bool> result(me().root(), false);
         for (auto it = std::begin(key); it != std::end(key); ++it) {
           result = result.first->make_child(*it);
         }
         return result;
       }
+      iterator erase_node(Node* node) {
+        me().invalidate_node(node);
+        return iterator(me(), prune_invalid_path(node));
+      }
       Node* prune_invalid_path(Node* node) {
-        while (node != me().root() && node->leaf_b() && ! me().validate(node)) {
+        while (node != me().root() && node->leaf_b() && ! me().is_valid_node(node)) {
           node->parent()->disown_child(node);
           Node* next = node->parent();
           delete node;
@@ -582,7 +586,7 @@ namespace com_masaers {
     private:
       void make_valid() {
         while (traverser_m.node() != NULL &&
-               ! trie_m->validate(traverser_m.node())) {
+               ! trie_m->is_valid_node(traverser_m.node())) {
           ++traverser_m;
         }
       }
