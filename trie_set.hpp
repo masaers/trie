@@ -2,6 +2,7 @@
 #define COM_MASAERS_TRIE_SET_HPP
 #include "trie_internal.hpp"
 #include <unordered_set>
+#include <memory>
 
 namespace com_masaers {
   
@@ -18,8 +19,6 @@ namespace com_masaers {
       inline basic_trie_set() : root_m(), members_m() {}
       inline basic_trie_set(const basic_trie_set&) = delete;
       inline basic_trie_set(basic_trie_set&&) = default;
-      Node* root() { return &root_m; }
-      const Node* root() const { return &root_m; }
       template<typename Key>
       inline std::pair<iterator, bool> insert(Key&& key) {
         Node* node = base_type::insert_node(std::forward<Key>(key)).first;
@@ -32,9 +31,15 @@ namespace com_masaers {
       }
       std::size_t size() const { return members_m.size(); }
       bool empty() const { return members_m.empty(); }
-      template<typename INode> INode& node_to_ref(INode* node) const { return *node; }
-      template<typename INode> INode* node_to_ptr(INode* node) const { return node; }
     protected:
+      trie_path_t<const Node> node_to_ref(const Node* node) const {
+        return base_type::path_to(node);
+      }
+      std::unique_ptr<trie_path_t<Node> > node_to_ptr(const Node* node) const {
+        return new trie_path_t<Node>(node_to_ref(node));
+      }
+      Node* root() { return &root_m; }
+      const Node* root() const { return &root_m; }
       inline bool is_valid_node(const Node* node) const {
         return members_m.find(node) != members_m.end();
       }

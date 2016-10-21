@@ -13,14 +13,13 @@ int main(const int argc, const char** argv) {
   
   vector<string> keys{ "aa", "a", "abb", "aaaa" };
   
-  // TODO test erase_suffixes
   unordered_trie_set<char> uts;
   for (const auto& key : keys) {
     uts.insert(key);
   }
   for (auto it = begin(uts); it != end(uts); ++it) {
     cout << '"';
-    for (const auto& e : uts.path_to(it)) {
+    for (const auto& e : *it) {
       cout << e;
     }
     cout << '"' << endl;
@@ -46,14 +45,14 @@ int main(const int argc, const char** argv) {
   }
   for (auto it = begin(ots); it != end(ots); ++it) {
     cout << '"';
-    for (const auto& e : ots.path_to(it)) {
+    for (const auto& e : *it) {
       cout << e;
     }
     cout << '"' << endl;
   }
-  for (auto& node : ots) {
+  for (const auto& node : ots) {
     cout << '"';
-    for (const auto& e : ots.path_to(node)) {
+    for (const auto& e : node) {
       cout << e;
     }
     cout << '"' << endl;
@@ -64,8 +63,11 @@ int main(const int argc, const char** argv) {
       // Forward
       auto git = gold.begin();
       for (auto it = ots.begin(); it != ots.end(); ++it) {
-        const auto key = ots.path_to(*it);
+        const auto key = *it;
         assert(string(begin(key), end(key)) == *git++);
+        // assert(string(begin(*it), end(*it)) == *git++);
+        /// \todo The above fails, since dereferencing the iterator
+        ///       instantiates a new trie_path_t every time.
       }
       assert(git == gold.end());
     }
@@ -73,7 +75,7 @@ int main(const int argc, const char** argv) {
       // Reverse
       auto git = gold.rbegin();
       for (auto it = ots.rbegin(); it != ots.rend(); ++it) {
-        const auto key = ots.path_to(*it);
+        const auto key = *it;
         assert(string(begin(key), end(key)) == *git++);
       }
       assert(git == gold.rend());
