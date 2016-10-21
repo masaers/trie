@@ -32,7 +32,8 @@ namespace com_masaers {
       }
       std::size_t size() const { return members_m.size(); }
       bool empty() const { return members_m.empty(); }
-      // TODO Implement erase_suffixes so that members are maintained.
+      template<typename INode> INode& node_to_ref(INode* node) const { return *node; }
+      template<typename INode> INode* node_to_ptr(INode* node) const { return node; }
     protected:
       inline bool is_valid_node(const Node* node) const {
         return members_m.find(node) != members_m.end();

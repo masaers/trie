@@ -7,11 +7,11 @@
 # Settings
 #
 
-CXXFLAGS+=-Wall -pedantic -std=c++11 -g -O3
+CXXFLAGS+=-Wall -pedantic -std=c++14 -g -O3
 LDFLAGS=
 
 PROG_NAMES=
-TEST_NAMES=trie_test
+TEST_NAMES=trie_test trie_set_test trie_map_test
 
 #
 # Derived settings
@@ -51,6 +51,7 @@ build/obj/%.o : %.cpp build/obj/.STAMP build/dep/.STAMP
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 build/test/%.out : build/bin/% build/test/.STAMP
+	@echo "[TESTING: $<]"
 	@if [ -e $@ ]; then \
 	( cp $@ $@.old; \
           $< &> $@; \

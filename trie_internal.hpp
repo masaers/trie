@@ -451,14 +451,14 @@ namespace com_masaers {
              template<typename...> class Traverser,
              template<typename...> class RTraverser>
     class trie_crtp_t {
-      template<typename INode, template<typename...> class ITraverser> class iterator_t;
+      template<typename INode, typename IDerived, template<typename...> class ITraverser> class iterator_t;
       Derived& me() { return static_cast<Derived&>(*this); }
       const Derived& me() const { return static_cast<const Derived&>(*this); }
     public:
-      typedef iterator_t<Node, Traverser> iterator;
-      typedef iterator_t<const Node, Traverser> const_iterator;
-      typedef iterator_t<Node, RTraverser> reverse_iterator;
-      typedef iterator_t<const Node, RTraverser> reverse_const_iterator;
+      typedef iterator_t<Node, Derived, Traverser> iterator;
+      typedef iterator_t<const Node, const Derived, Traverser> const_iterator;
+      typedef iterator_t<Node, Derived, RTraverser> reverse_iterator;
+      typedef iterator_t<const Node, const Derived, RTraverser> reverse_const_iterator;
       inline const_iterator cbegin() const { return const_iterator(me()); }
       inline const_iterator cend() const { return const_iterator(); }
       inline iterator begin() { return iterator(me()); }
@@ -472,16 +472,28 @@ namespace com_masaers {
       inline reverse_const_iterator rbegin() const { return crbegin(); }
       inline reverse_const_iterator rend() const { return crend(); }
       inline trie_path_t<const Node> path_to(const const_iterator& it) const {
-        return trie_path_t<const Node>(me().root(), &*it);
+        return trie_path_t<const Node>(me().root(), it.node());
       }
       inline trie_path_t<Node> path_to(const iterator& it) const {
-        return trie_path_t<Node>(me().root(), &*it);
+        return trie_path_t<Node>(me().root(), it.node());
+      }
+      inline trie_path_t<const Node> path_to(const reverse_const_iterator& it) const {
+        return trie_path_t<const Node>(me().root(), it.node());
+      }
+      inline trie_path_t<Node> path_to(const reverse_iterator& it) const {
+        return trie_path_t<Node>(me().root(), it.node());
       }
       inline trie_path_t<const Node> path_to(const Node& node) const {
         return trie_path_t<const Node>(me().root(), &node);
       }
       inline trie_path_t<Node> path_to(Node& node) const {
         return trie_path_t<Node>(me().root(), &node);
+      }
+      inline trie_path_t<const Node> path_to(const Node* node) const {
+        return trie_path_t<const Node>(me().root(), node);
+      }
+      inline trie_path_t<Node> path_to(Node* node) const {
+        return trie_path_t<Node>(me().root(), node);
       }
       template<typename Key> inline std::pair<iterator, bool> insert(Key&& key) {
         const auto p(insert_node(std::forward<Key>(key)));
@@ -546,8 +558,22 @@ namespace com_masaers {
     template<typename Derived, typename Node,
              template<typename...> class Traverser,
              template<typename...> class RTraverser>
-    template<typename INode, template<typename...> class ITraverser>
+    template<typename INode,
+             typename IDerived,
+             template<typename...> class ITraverser>
     class trie_crtp_t<Derived, Node, Traverser, RTraverser>::iterator_t {
+      friend class trie_crtp_t<Derived, Node, Traverser, RTraverser>;
+      friend Derived;
+    protected:
+      void make_valid() {
+        while (traverser_m.node() != NULL &&
+               ! trie_m->is_valid_node(traverser_m.node())) {
+          ++traverser_m;
+        }
+      }
+      INode* node() const { return traverser_m.node(); }
+      ITraverser<INode> traverser_m;
+      IDerived* trie_m;
     public:
       inline iterator_t() : traverser_m(), trie_m(NULL) {}
       template<typename Trie> explicit inline iterator_t(Trie& trie)
@@ -581,17 +607,12 @@ namespace com_masaers {
         return traverser_m == x.traverser_m;
       }
       inline bool operator!=(const iterator_t& x) const { return ! operator==(x); }
-      INode& operator*() const { return *traverser_m.node(); }
-      INode* operator->() const { return traverser_m.node(); }
-    private:
-      void make_valid() {
-        while (traverser_m.node() != NULL &&
-               ! trie_m->is_valid_node(traverser_m.node())) {
-          ++traverser_m;
-        }
+      inline auto operator*() const -> decltype(this->trie_m->node_to_ref(this->node())) {
+        return trie_m->node_to_ref(node());
       }
-      ITraverser<INode> traverser_m;
-      const Derived* trie_m;
+      inline auto operator->() const -> decltype(this->trie_m->node_to_ptr(this->node())) {
+        return trie_m->node_to_ptr(node()); 
+      }
     }; // trie_crtp_t::iterator_t
 
   } // namespace internal

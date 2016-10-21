@@ -16,6 +16,8 @@ namespace com_masaers {
     inline basic_trie(basic_trie&&) = default;
     Node* root() { return &root_m; }
     const Node* root() const { return &root_m; }
+    template<typename INode> INode& node_to_ref(INode* node) const { return *node; }
+    template<typename INode> INode* node_to_ptr(INode* node) const { return node; }
   protected:
     inline bool is_valid_node(const Node* node) const { return true; }
     inline void invalidate_node(const Node* node) {}
